@@ -2733,7 +2733,8 @@ async function main() {
   const projectName = await esm_default3({ message: "Enter your project name:" });
   const rhf = await esm_default2({ message: "Include React Hook Form?" });
   const projectPath = resolveSync(projectName, process.cwd());
-  const templatePath = resolveSync("../template", import.meta.dir);
+  const templatePath = new URL("../template", import.meta.dir).pathname;
+  console.log("vagina", templatePath);
   console.log("smack");
   await write(projectPath, templatePath);
   console.log("my");

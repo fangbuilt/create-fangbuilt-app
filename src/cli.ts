@@ -15,7 +15,8 @@ async function main() {
     // });
 
     const projectPath = resolveSync(projectName, process.cwd());
-    const templatePath = resolveSync("../template", import.meta.dir);
+    const templatePath = new URL("../template", import.meta.dir).pathname;
+    console.log("vagina", templatePath);
 
     console.log("smack");
     await write(projectPath, templatePath);
