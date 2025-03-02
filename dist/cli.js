@@ -2983,8 +2983,22 @@ ${theme.style.description(selectedChoice.description)}` : ``;
 ${page}${helpTipBottom}${choiceDescription}${import_ansi_escapes2.default.cursorHide}`;
 });
 // src/cli.ts
-var {$, resolveSync, write } = globalThis.Bun;
+var {$ } = globalThis.Bun;
 import path from "path";
+import fs from "fs";
+function copyDir(src, dest) {
+  if (!fs.existsSync(dest))
+    fs.mkdirSync(dest, { recursive: true });
+  for (const file2 of fs.readdirSync(src)) {
+    const srcPath = path.join(src, file2);
+    const destPath = path.join(dest, file2);
+    if (fs.statSync(srcPath).isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
 async function main() {
   console.log("Pass here 2", path.resolve(import.meta.dir, "../template"));
   const projectName = await esm_default3({ message: "Enter your project name:" });
@@ -2997,20 +3011,44 @@ async function main() {
       { name: "None, just TailwindCSS", value: "none" }
     ]
   });
-  const projectPath = resolveSync(projectName, process.cwd());
+  const projectPath = path.resolve(process.cwd(), projectName);
   const templatePath = path.resolve(import.meta.dir, "../template");
-  await write(projectPath, templatePath);
-  await $`cd ${projectPath} && bun install`;
+  copyDir(templatePath, projectPath);
+  try {
+    console.log("Installing core dependencies...");
+    await $`bun install`.cwd(projectPath);
+    console.log("\u2705 Core dependencies installed");
+  } catch (error) {
+    console.error("\u274C Installation error", error);
+  }
   if (rhf) {
-    await $`cd ${projectPath} && bun add react-hook-form`;
+    try {
+      console.log("Adding React Hook Form...");
+      await $`bun add react-hook-form`.cwd(projectPath);
+      console.log("\u2705 React Hook Form installed");
+    } catch (error) {
+      console.warn("\u26A0\uFE0F Failed to add React Hook Form", error);
+    }
   }
   if (uiLib === "radix") {
     console.log("Radix selected");
   } else if (uiLib === "mantine") {
     console.log("Mantine selected");
   } else {
-    console.log("Okay");
+    console.log("TailwindCSS only");
   }
-  await $`cd ${projectPath} && git init && git add . && git commot -m "Initial Commit"`;
+  try {
+    console.log("Initializing Git...");
+    await $`git init`.cwd(projectPath);
+    console.log("\u2705 Git initialized");
+    console.log("Staging files...");
+    await $`git add . `.cwd(projectPath);
+    console.log("\u2705 Files staged");
+    console.log("Creating first commit message...");
+    await $`git commit -m "Init"`.cwd(projectPath);
+    console.log("\u2705 Initial commit created");
+  } catch (error) {
+    console.warn("\u26A0\uFE0F Git setup failed", error);
+  }
 }
 main();

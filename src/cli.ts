@@ -5,7 +5,7 @@ import fs from "fs";
 
 function copyDir(src: string, dest: string) {
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-    
+
     for (const file of fs.readdirSync(src)) {
         const srcPath = path.join(src, file);
         const destPath = path.join(dest, file);
@@ -35,14 +35,24 @@ async function main() {
     const projectPath = path.resolve(process.cwd(), projectName);
     const templatePath = path.resolve(import.meta.dir, "../template");
 
-    // await write(projectPath, file(templatePath));
-
     copyDir(templatePath, projectPath);
 
-    await $`bun install`.cwd(projectPath);
+    try {
+        console.log("Installing core dependencies...");
+        await $`bun install`.cwd(projectPath);
+        console.log("✅ Core dependencies installed");
+    } catch (error) {
+        console.error("❌ Installation error", error);
+    }
 
     if (rhf) {
-        await $`bun add react-hook-form`.cwd(projectPath);
+        try {
+            console.log("Adding React Hook Form...");
+            await $`bun add react-hook-form`.cwd(projectPath);
+            console.log("✅ React Hook Form installed");
+        } catch (error) {
+            console.warn("⚠️ Failed to add React Hook Form", error);
+        }
     }
 
     if (uiLib === "radix") {
@@ -50,10 +60,24 @@ async function main() {
     } else if (uiLib === "mantine") {
         console.log("Mantine selected");
     } else {
-        console.log("Okay");
+        console.log("TailwindCSS only");
     }
 
-    await $`git init && git add . && git commit -m "Init"`.cwd(projectPath);
+    try {
+        console.log("Initializing Git...");
+        await $`git init`.cwd(projectPath);
+        console.log("✅ Git initialized");
+
+        console.log("Staging files...");
+        await $`git add . `.cwd(projectPath);
+        console.log("✅ Files staged");
+
+        console.log("Creating first commit message...");
+        await $`git commit -m "Init"`.cwd(projectPath);
+        console.log("✅ Initial commit created");
+    } catch (error) {
+        console.warn("⚠️ Git setup failed", error);
+    }
 }
 
 main();
