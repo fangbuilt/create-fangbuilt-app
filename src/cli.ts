@@ -1,37 +1,59 @@
-import { confirm, input } from "@inquirer/prompts";
-import { $, resolveSync, write } from "bun";
+import { confirm, input, select } from "@inquirer/prompts";
+import { $, file, write } from "bun";
+import path from "path";
+import fs from "fs";
+
+function copyDir(src: string, dest: string) {
+    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+    
+    for (const file of fs.readdirSync(src)) {
+        const srcPath = path.join(src, file);
+        const destPath = path.join(dest, file);
+
+        if (fs.statSync(srcPath).isDirectory()) {
+            copyDir(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
 
 async function main() {
-    console.log("papi");
+    console.log("Pass here 2", path.resolve(import.meta.dir, "../template"));
     const projectName = await input({ message: "Enter your project name:" });
 
     const rhf = await confirm({ message: "Include React Hook Form?" });
-    // const uiLib = await select({
-    //     message: "Choose a UI library",
-    //     choices: [
-    //         { name: "Radix UI", value: "radix" },
-    //         { name: "Mantine", value: "mantine" },
-    //     ],
-    // });
+    const uiLib = await select({
+        message: "Choose a UI library",
+        choices: [
+            { name: "Radix UI", value: "radix" },
+            { name: "Mantine", value: "mantine" },
+            { name: "None, just TailwindCSS", value: "none" },
+        ],
+    });
 
-    const projectPath = resolveSync(projectName, process.cwd());
-    const templatePath = new URL("../template", import.meta.dir).pathname;
-    console.log("vagina", templatePath);
+    const projectPath = path.resolve(process.cwd(), projectName);
+    const templatePath = path.resolve(import.meta.dir, "../template");
 
-    console.log("smack");
-    await write(projectPath, templatePath);
+    // await write(projectPath, file(templatePath));
 
-    console.log("my");
-    await $`cd ${projectPath} && bun install`
+    copyDir(templatePath, projectPath);
+
+    await $`bun install`.cwd(projectPath);
 
     if (rhf) {
-        await $`cd ${projectPath} && bun add react-hook-form`
+        await $`bun add react-hook-form`.cwd(projectPath);
     }
 
-    console.log("ass");
-    await $`cd ${projectPath} && git init && git add . && git commot -m "Initial Commit"`
+    if (uiLib === "radix") {
+        console.log("Radix selected");
+    } else if (uiLib === "mantine") {
+        console.log("Mantine selected");
+    } else {
+        console.log("Okay");
+    }
 
-    console.log("Like a drum");
+    await $`git init && git add . && git commit -m "Init"`.cwd(projectPath);
 }
 
 main();

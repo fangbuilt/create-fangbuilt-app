@@ -1662,7 +1662,10 @@ var require_ansi_escapes = __commonJS((exports, module) => {
 });
 
 // node_modules/@inquirer/core/dist/esm/lib/key.js
+var isUpKey = (key) => key.name === "up" || key.name === "k" || key.ctrl && key.name === "p";
+var isDownKey = (key) => key.name === "down" || key.name === "j" || key.ctrl && key.name === "n";
 var isBackspaceKey = (key) => key.name === "backspace";
+var isNumberKey = (key) => "123456789".includes(key.name);
 var isEnterKey = (key) => key.name === "enter" || key.name === "return";
 // node_modules/@inquirer/core/dist/esm/lib/errors.js
 class AbortPromptError extends Error {
@@ -2197,11 +2200,22 @@ function usePrefix({ status = "idle", theme }) {
   const iconName = status === "loading" ? "idle" : status;
   return typeof prefix === "string" ? prefix : prefix[iconName] ?? prefix["idle"];
 }
+// node_modules/@inquirer/core/dist/esm/lib/use-memo.js
+function useMemo(fn, dependencies) {
+  return withPointer((pointer) => {
+    const prev = pointer.get();
+    if (!prev || prev.dependencies.length !== dependencies.length || prev.dependencies.some((dep, i) => dep !== dependencies[i])) {
+      const value = fn();
+      pointer.set({ value, dependencies });
+      return value;
+    }
+    return prev.value;
+  });
+}
 // node_modules/@inquirer/core/dist/esm/lib/use-ref.js
 function useRef(val) {
   return useState({ current: val })[0];
 }
-
 // node_modules/@inquirer/core/dist/esm/lib/use-keypress.js
 function useKeypress(userHandler) {
   const signal = useRef(userHandler);
@@ -2233,6 +2247,95 @@ function readlineWidth() {
   return import_cli_width.default({ defaultWidth: 80, output: readline().output });
 }
 
+// node_modules/@inquirer/core/dist/esm/lib/pagination/lines.js
+function split(content, width) {
+  return breakLines(content, width).split(`
+`);
+}
+function rotate(count, items) {
+  const max = items.length;
+  const offset = (count % max + max) % max;
+  return [...items.slice(offset), ...items.slice(0, offset)];
+}
+function lines({ items, width, renderItem, active, position: requested, pageSize }) {
+  const layouts = items.map((item, index) => ({
+    item,
+    index,
+    isActive: index === active
+  }));
+  const layoutsInPage = rotate(active - requested, layouts).slice(0, pageSize);
+  const renderItemAt = (index) => layoutsInPage[index] == null ? [] : split(renderItem(layoutsInPage[index]), width);
+  const pageBuffer = Array.from({ length: pageSize });
+  const activeItem = renderItemAt(requested).slice(0, pageSize);
+  const position = requested + activeItem.length <= pageSize ? requested : pageSize - activeItem.length;
+  pageBuffer.splice(position, activeItem.length, ...activeItem);
+  let bufferPointer = position + activeItem.length;
+  let layoutPointer = requested + 1;
+  while (bufferPointer < pageSize && layoutPointer < layoutsInPage.length) {
+    for (const line of renderItemAt(layoutPointer)) {
+      pageBuffer[bufferPointer++] = line;
+      if (bufferPointer >= pageSize)
+        break;
+    }
+    layoutPointer++;
+  }
+  bufferPointer = position - 1;
+  layoutPointer = requested - 1;
+  while (bufferPointer >= 0 && layoutPointer >= 0) {
+    for (const line of renderItemAt(layoutPointer).reverse()) {
+      pageBuffer[bufferPointer--] = line;
+      if (bufferPointer < 0)
+        break;
+    }
+    layoutPointer--;
+  }
+  return pageBuffer.filter((line) => typeof line === "string");
+}
+
+// node_modules/@inquirer/core/dist/esm/lib/pagination/position.js
+function finite({ active, pageSize, total }) {
+  const middle = Math.floor(pageSize / 2);
+  if (total <= pageSize || active < middle)
+    return active;
+  if (active >= total - middle)
+    return active + pageSize - total;
+  return middle;
+}
+function infinite({ active, lastActive, total, pageSize, pointer }) {
+  if (total <= pageSize)
+    return active;
+  if (lastActive < active && active - lastActive < pageSize) {
+    return Math.min(Math.floor(pageSize / 2), pointer + active - lastActive);
+  }
+  return pointer;
+}
+
+// node_modules/@inquirer/core/dist/esm/lib/pagination/use-pagination.js
+function usePagination({ items, active, renderItem, pageSize, loop = true }) {
+  const state = useRef({ position: 0, lastActive: 0 });
+  const position = loop ? infinite({
+    active,
+    lastActive: state.current.lastActive,
+    total: items.length,
+    pageSize,
+    pointer: state.current.position
+  }) : finite({
+    active,
+    total: items.length,
+    pageSize
+  });
+  state.current.position = position;
+  state.current.lastActive = active;
+  return lines({
+    items,
+    width: readlineWidth(),
+    renderItem,
+    active,
+    position,
+    pageSize
+  }).join(`
+`);
+}
 // node_modules/@inquirer/core/dist/esm/lib/create-prompt.js
 var import_mute_stream = __toESM(require_lib(), 1);
 import * as readline2 from "readline";
@@ -2618,6 +2721,20 @@ function createPrompt(view) {
   };
   return prompt;
 }
+// node_modules/@inquirer/core/dist/esm/lib/Separator.js
+var import_yoctocolors_cjs2 = __toESM(require_yoctocolors_cjs(), 1);
+class Separator {
+  separator = import_yoctocolors_cjs2.default.dim(Array.from({ length: 15 }).join(esm_default.line));
+  type = "separator";
+  constructor(separator) {
+    if (separator) {
+      this.separator = separator;
+    }
+  }
+  static isSeparator(choice) {
+    return Boolean(choice && typeof choice === "object" && "type" in choice && choice.type === "separator");
+  }
+}
 // node_modules/@inquirer/confirm/dist/esm/index.js
 function getBooleanValue(value, defaultValue) {
   let answer = defaultValue !== false;
@@ -2726,24 +2843,174 @@ var esm_default3 = createPrompt((config, done) => {
     error
   ];
 });
+// node_modules/@inquirer/select/dist/esm/index.js
+var import_yoctocolors_cjs3 = __toESM(require_yoctocolors_cjs(), 1);
+var import_ansi_escapes2 = __toESM(require_ansi_escapes(), 1);
+var selectTheme = {
+  icon: { cursor: esm_default.pointer },
+  style: {
+    disabled: (text) => import_yoctocolors_cjs3.default.dim(`- ${text}`),
+    description: (text) => import_yoctocolors_cjs3.default.cyan(text)
+  },
+  helpMode: "auto"
+};
+function isSelectable(item) {
+  return !Separator.isSeparator(item) && !item.disabled;
+}
+function normalizeChoices(choices) {
+  return choices.map((choice) => {
+    if (Separator.isSeparator(choice))
+      return choice;
+    if (typeof choice === "string") {
+      return {
+        value: choice,
+        name: choice,
+        short: choice,
+        disabled: false
+      };
+    }
+    const name = choice.name ?? String(choice.value);
+    return {
+      value: choice.value,
+      name,
+      description: choice.description,
+      short: choice.short ?? name,
+      disabled: choice.disabled ?? false
+    };
+  });
+}
+var esm_default4 = createPrompt((config, done) => {
+  const { loop = true, pageSize = 7 } = config;
+  const firstRender = useRef(true);
+  const theme = makeTheme(selectTheme, config.theme);
+  const [status, setStatus] = useState("idle");
+  const prefix = usePrefix({ status, theme });
+  const searchTimeoutRef = useRef();
+  const items = useMemo(() => normalizeChoices(config.choices), [config.choices]);
+  const bounds = useMemo(() => {
+    const first = items.findIndex(isSelectable);
+    const last = items.findLastIndex(isSelectable);
+    if (first === -1) {
+      throw new ValidationError("[select prompt] No selectable choices. All choices are disabled.");
+    }
+    return { first, last };
+  }, [items]);
+  const defaultItemIndex = useMemo(() => {
+    if (!("default" in config))
+      return -1;
+    return items.findIndex((item) => isSelectable(item) && item.value === config.default);
+  }, [config.default, items]);
+  const [active, setActive] = useState(defaultItemIndex === -1 ? bounds.first : defaultItemIndex);
+  const selectedChoice = items[active];
+  useKeypress((key2, rl) => {
+    clearTimeout(searchTimeoutRef.current);
+    if (isEnterKey(key2)) {
+      setStatus("done");
+      done(selectedChoice.value);
+    } else if (isUpKey(key2) || isDownKey(key2)) {
+      rl.clearLine(0);
+      if (loop || isUpKey(key2) && active !== bounds.first || isDownKey(key2) && active !== bounds.last) {
+        const offset = isUpKey(key2) ? -1 : 1;
+        let next = active;
+        do {
+          next = (next + offset + items.length) % items.length;
+        } while (!isSelectable(items[next]));
+        setActive(next);
+      }
+    } else if (isNumberKey(key2)) {
+      rl.clearLine(0);
+      const position = Number(key2.name) - 1;
+      const item = items[position];
+      if (item != null && isSelectable(item)) {
+        setActive(position);
+      }
+    } else if (isBackspaceKey(key2)) {
+      rl.clearLine(0);
+    } else {
+      const searchTerm = rl.line.toLowerCase();
+      const matchIndex = items.findIndex((item) => {
+        if (Separator.isSeparator(item) || !isSelectable(item))
+          return false;
+        return item.name.toLowerCase().startsWith(searchTerm);
+      });
+      if (matchIndex !== -1) {
+        setActive(matchIndex);
+      }
+      searchTimeoutRef.current = setTimeout(() => {
+        rl.clearLine(0);
+      }, 700);
+    }
+  });
+  useEffect(() => () => {
+    clearTimeout(searchTimeoutRef.current);
+  }, []);
+  const message = theme.style.message(config.message, status);
+  let helpTipTop = "";
+  let helpTipBottom = "";
+  if (theme.helpMode === "always" || theme.helpMode === "auto" && firstRender.current) {
+    firstRender.current = false;
+    if (items.length > pageSize) {
+      helpTipBottom = `
+${theme.style.help("(Use arrow keys to reveal more choices)")}`;
+    } else {
+      helpTipTop = theme.style.help("(Use arrow keys)");
+    }
+  }
+  const page = usePagination({
+    items,
+    active,
+    renderItem({ item, isActive }) {
+      if (Separator.isSeparator(item)) {
+        return ` ${item.separator}`;
+      }
+      if (item.disabled) {
+        const disabledLabel = typeof item.disabled === "string" ? item.disabled : "(disabled)";
+        return theme.style.disabled(`${item.name} ${disabledLabel}`);
+      }
+      const color = isActive ? theme.style.highlight : (x) => x;
+      const cursor = isActive ? theme.icon.cursor : ` `;
+      return color(`${cursor} ${item.name}`);
+    },
+    pageSize,
+    loop
+  });
+  if (status === "done") {
+    return `${prefix} ${message} ${theme.style.answer(selectedChoice.short)}`;
+  }
+  const choiceDescription = selectedChoice.description ? `
+${theme.style.description(selectedChoice.description)}` : ``;
+  return `${[prefix, message, helpTipTop].filter(Boolean).join(" ")}
+${page}${helpTipBottom}${choiceDescription}${import_ansi_escapes2.default.cursorHide}`;
+});
 // src/cli.ts
 var {$, resolveSync, write } = globalThis.Bun;
+import path from "path";
 async function main() {
-  console.log("papi");
+  console.log("Pass here 2", path.resolve(import.meta.dir, "../template"));
   const projectName = await esm_default3({ message: "Enter your project name:" });
   const rhf = await esm_default2({ message: "Include React Hook Form?" });
+  const uiLib = await esm_default4({
+    message: "Choose a UI library",
+    choices: [
+      { name: "Radix UI", value: "radix" },
+      { name: "Mantine", value: "mantine" },
+      { name: "None, just TailwindCSS", value: "none" }
+    ]
+  });
   const projectPath = resolveSync(projectName, process.cwd());
-  const templatePath = new URL("../template", import.meta.dir).pathname;
-  console.log("vagina", templatePath);
-  console.log("smack");
+  const templatePath = path.resolve(import.meta.dir, "../template");
   await write(projectPath, templatePath);
-  console.log("my");
   await $`cd ${projectPath} && bun install`;
   if (rhf) {
     await $`cd ${projectPath} && bun add react-hook-form`;
   }
-  console.log("ass");
+  if (uiLib === "radix") {
+    console.log("Radix selected");
+  } else if (uiLib === "mantine") {
+    console.log("Mantine selected");
+  } else {
+    console.log("Okay");
+  }
   await $`cd ${projectPath} && git init && git add . && git commot -m "Initial Commit"`;
-  console.log("Like a drum");
 }
 main();
