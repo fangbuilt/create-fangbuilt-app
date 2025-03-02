@@ -1,0 +1,21 @@
+{
+  "name": "create-fangbuilt-app",
+  "version": "1.0.3",
+  "description": "CLI to scaffold fangbuilt app",
+  "bin": {
+    "create-fangbuilt-app": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "bun build --target=bun --entrypoints src/cli.ts --outdir dist"
+  },
+  "type": "module",
+  "private": false,
+  "devDependencies": {
+    "@inquirer/prompts": "^7.3.2",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "files": ["dist/cli.js"]
+}
