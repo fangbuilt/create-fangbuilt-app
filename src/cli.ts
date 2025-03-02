@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { confirm, input, select } from "@inquirer/prompts";
 import { $, file, write } from "bun";
 import path from "path";

@@ -3,10 +3,10 @@
   "version": "1.0.11",
   "description": "CLI to scaffold fangbuilt app",
   "bin": {
-    "create-fangbuilt-app": "index.js"
+    "create-fangbuilt-app": "./dist/cli.js"
   },
   "scripts": {
-    "build": "bun build --target=bun --entrypoints src/cli.ts --outdir dist"
+    "build": "bun build --target bun --entrypoints src/cli.ts --outdir dist"
   },
   "type": "module",
   "private": false,
