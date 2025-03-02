@@ -78,6 +78,10 @@ async function main() {
     } catch (error) {
         console.warn("⚠️ Git setup failed", error);
     }
+
+    console.log("✅ Done! Try:");
+    console.log(`cd ${projectPath}`);
+    console.log("bun run dev");
 }
 
 main();

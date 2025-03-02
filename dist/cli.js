@@ -3050,5 +3050,8 @@ async function main() {
   } catch (error) {
     console.warn("\u26A0\uFE0F Git setup failed", error);
   }
+  console.log("\u2705 Done! Try:");
+  console.log(`cd ${projectPath}`);
+  console.log("bun run dev");
 }
 main();

@@ -1,4 +1,6 @@
-# Fangbuilt Plate
+# Fangbuilt's Boilerplate App
+
+<span style="font-size: 32px;">`bun create fangbuilt-app`</span>
 
 > **[Bun](https://bun.sh/) is required to be installed locally in your device**
 
@@ -16,11 +18,17 @@ This **web front-end boilerplate** provides a minimal setup to get React working
  - [TailwindCSS](https://tailwindcss.com/) v4
  - [Bun](https://bun.sh/) (runtime and package manager)
 
-> Please change your default formatter to [Prettier](https://prettier.io/), usually by `ctrl + shift + p: Format Document` in [Visual Studio Code](https://code.visualstudio.com/)
+Optional packages:
+ - Mantine
+ - Tanstack Table
+ - Tanstack Virtual
+ - React Hook Form
 
-> Don't forget to execute `bun run install` after forking or cloning
+> Please change your default formatter to [Prettier](https://prettier.io/), usually by `ctrl + shift + p: Format Document` in [Visual Studio Code](https://code.visualstudio.com/).
 
-> Execute `bun run dev` to generate the `routeTree.gen.ts` file inside the `/src` directory
+> Don't forget to execute `bun create fangbuilt-app` to start scaffolding.
+
+> Execute `bun run dev` to generate the `routeTree.gen.ts` file inside the `/src` directory.
 
 # Plans
 - Will use the [React Compiler](https://react.dev/learn/react-compiler) once it supports [SWC](https://swc.rs/docs/benchmarks#es2020-1). Ain't no way in hell I'm using [Babel](https://babeljs.io/), thank you.
