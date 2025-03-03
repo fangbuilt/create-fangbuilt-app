@@ -1,6 +1,6 @@
 {
   "name": "create-fangbuilt-app",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "CLI to scaffold fangbuilt app",
   "bin": {
     "create-fangbuilt-app": "./dist/cli.js"
